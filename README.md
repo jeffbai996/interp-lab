@@ -92,6 +92,31 @@ The circuit decomposes into a few head families that compose:
 
 Roughly: detect the duplicate → inhibit the subject → move the remaining name.
 
+## Results so far
+
+The full IOI circuit in GPT-2 small, mapped by hand across the notebooks. Clean
+logit diff ≈ **+3.17**, corrupted ≈ **−3.54** (the metric the whole lab moves).
+
+| stage | heads | found in |
+|---|---|---|
+| previous-token | 2.2, 4.11 | `03` |
+| duplicate-token | 0.1, 0.10, 3.0 | `03` |
+| induction | 5.5, 5.8, 5.9, 6.9 | `03` |
+| S-inhibition | 7.3, 7.9, 8.6, 8.10 | `02` |
+| name movers | 9.6, 9.9, 10.0 | `02` |
+| negative movers | 10.7, 11.10 | `02` |
+| backup movers | 9.0, 9.7, 10.1, 10.2, 10.6, 10.10, 11.2, 11.6, 11.9 | `02` |
+
+Read it as a pipeline: **detect the duplicate** (previous-token feeds induction;
+induction and duplicate-token both write "S2 is the repeat") **→ inhibit the
+subject** (S-inhibition reads S2 and steers the movers off it) **→ move the name**
+(name movers copy the indirect object). Every head above is a heatmap cell you
+produce yourself, then confirm with ablation. Notebook **04** then sets circuits
+aside for the SAE feature basis.
+
+Shared setup (model loader, the IOI task + metric, the heatmap) lives in
+`interp_lab/` from `03` onward; `00–02` predate it and inline their own copies.
+
 ## Setup
 
 ```bash
@@ -154,11 +179,15 @@ Notebooks are numbered as a curriculum:
 - **00 — baseline** *(included)*: confirm the behavior exists and the metric
   works. Always pin your metric before you start cutting.
 - **01 — activation patching**: localize the circuit by `(layer, position)`.
-- **02 — head attribution**: narrow to the specific heads above.
-- **03 — attention patterns**: visualize the name-movers attending to the IO
-  token, and trace how the families compose.
-- **…then SAEs**: a different question — not "what does this circuit do" but
-  "what features does the residual stream encode in a human-readable basis."
+- **02 — head attribution**: DLA vs. patching, attention patterns, and the
+  S-inhibition heads — the *back* of the circuit (the answer-writers and what
+  steers them).
+- **03 — duplicate & induction heads**: the *front* of the circuit — how the
+  model detects that the subject is the *repeated* name (previous-token,
+  duplicate-token, and induction heads), closing the IOI loop.
+- **04 — SAEs**: a different question — not "what does this circuit do" but "what
+  features does the residual stream encode in a human-readable basis." Load a
+  pretrained sparse autoencoder, inspect features, and tie them back to the circuit.
 
 The way to actually internalize this, rather than nodding along:
 
@@ -176,13 +205,16 @@ The way to actually internalize this, rather than nodding along:
 
 ```
 notebooks/         one notebook per investigation, numbered in order
+interp_lab/        shared helpers (model loader, IOI task + metric, heatmap)
 requirements.txt   pinned environment
 LICENSE            MIT
 ```
 
-Flat and notebook-first on purpose. No premature abstraction — if something earns
-being pulled into a shared module, it will; until then it lives in the notebook
-that needs it.
+Flat and notebook-first on purpose. No premature abstraction — the `interp_lab/`
+module only appeared once the IOI setup, metric, and heatmap had been copy-pasted
+across three notebooks, which is the bar: if something earns being pulled into a
+shared module, it does; until then it lives in the notebook that needs it. (00–02
+still inline their copies — they were written to stand alone.)
 
 ## Stack
 
