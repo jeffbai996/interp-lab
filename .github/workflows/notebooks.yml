@@ -1,0 +1,40 @@
+name: notebooks
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+jobs:
+  execute:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -r requirements.txt nbformat
+      - name: Execute baseline notebook
+        run: |
+          jupyter nbconvert --to notebook --execute --output-dir /tmp/nb-ci \
+            --ExecutePreprocessor.timeout=1800 notebooks/00_ioi_baseline.ipynb
+      - name: Solve and execute exercise notebooks
+        run: |
+          # 01-04 ship with TODO/... placeholder cells for the reader to fill
+          # in; scripts/solve_and_execute.py builds the solved version (TODO
+          # replaced by the paired <details>Solution</details> code) so CI
+          # verifies what a reader actually ends up running.
+          mkdir -p /tmp/nb-solved
+          for nb in notebooks/01_*.ipynb notebooks/02_*.ipynb notebooks/03_*.ipynb notebooks/04_*.ipynb; do
+            python3 scripts/solve_and_execute.py "$nb" /tmp/nb-solved
+          done
+          for nb in /tmp/nb-solved/*.ipynb; do
+            echo "=== $nb ==="
+            cp "$nb" "notebooks/$(basename "$nb")"
+            jupyter nbconvert --to notebook --execute --output-dir /tmp/nb-ci \
+              --ExecutePreprocessor.timeout=1800 "notebooks/$(basename "$nb")"
+            rm "notebooks/$(basename "$nb")"
+          done
